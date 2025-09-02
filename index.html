@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A Special Message For You</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Added Nunito font for a softer UI -->
+    <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            /* Using Nunito as the primary font */
+            font-family: 'Nunito', sans-serif;
+            touch-action: none;
+            /* New, more vibrant and romantic gradient background */
+            background: linear-gradient(-45deg, #ffafcc, #ffc8dd, #bde0fe, #a2d2ff);
+            background-size: 400% 400%;
+            animation: gradient 18s ease infinite;
+        }
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .font-pacifico {
+            font-family: 'Pacifico', cursive;
+        }
+        #scratch-canvas {
+            cursor: none;
+        }
+        .card-container {
+            box-shadow: 0 10px 35px rgba(0,0,0,0.1), 0 5px 15px rgba(0,0,0,0.07);
+        }
+        .pulse-once-enabled {
+            animation: pulse-animation 2s infinite;
+        }
+        @keyframes pulse-animation {
+            0% { box-shadow: 0 0 0 0 rgba(219, 39, 119, 0.7); }
+            70% { box-shadow: 0 0 0 12px rgba(219, 39, 119, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(219, 39, 119, 0); }
+        }
+        #image-input { display: none; }
+
+        input[type=range] {
+            -webkit-appearance: none; appearance: none;
+            background: transparent; cursor: pointer;
+        }
+        input[type=range]::-webkit-slider-runnable-track { background: #fce7f3; height: 0.5rem; border-radius: 0.5rem; }
+        input[type=range]::-moz-range-track { background: #fce7f3; height: 0.5rem; border-radius: 0.5rem; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none; margin-top: -4px;
+            background-color: #db2777; height: 1.25rem; width: 1.25rem; border-radius: 50%;
+        }
+        input[type=range]::-moz-range-thumb {
+            border: none; border-radius: 50%; background-color: #db2777;
+            height: 1.25rem; width: 1.25rem;
+        }
+
+        .sr-only {
+            position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+            overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;
+        }
+        .sr-only-focusable:active, .sr-only-focusable:focus {
+            position: absolute; z-index: 50; width: auto; height: auto; top: 10px; left: 10px;
+            padding: 0.5rem 1rem; margin: 0; overflow: visible; clip: auto; white-space: normal;
+            background-color: white; color: black; border: 2px solid #db2777; border-radius: 0.5rem;
+        }
+        .slide { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: opacity 0.5s ease-in-out; opacity: 0; }
+        .slide.active { opacity: 1; }
+        .slide-nav {
+            position: absolute; top: 50%; transform: translateY(-50%); background-color: rgba(0,0,0,0.3);
+            color: white; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 24px;
+            cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center;
+        }
+        .slide-nav:hover { background-color: rgba(0,0,0,0.5); }
+        .slide-nav.prev { left: 10px; }
+        .slide-nav.next { right: 10px; }
+        /* Sparkle cursor style */
+        #cursor-preview {
+            color: #f472b6;
+            font-size: 32px;
+            text-shadow: 0 0 10px #f472b6, 0 0 20px #fff;
+            animation: sparkle-anim 1s infinite alternate;
+        }
+        @keyframes sparkle-anim {
+            from { transform: scale(0.8) rotate(0deg); opacity: 0.7; }
+            to { transform: scale(1.2) rotate(15deg); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+
+    <!-- New background hearts canvas -->
+    <canvas id="hearts-background" class="fixed inset-0 w-full h-full z-0 pointer-events-none"></canvas>
+
+    <!-- Splash Screen -->
+    <div id="splash-screen" class="fixed inset-0 bg-pink-100 z-50 flex flex-col items-center justify-center text-center p-8 transition-opacity duration-1000 ease-in-out">
+        <div class="mb-8">
+            <p id="splash-date" class="text-xl text-gray-600"></p>
+            <p id="splash-time" class="text-5xl font-bold text-pink-500"></p>
+        </div>
+        <blockquote>
+            <p id="splash-quote-text" class="text-2xl italic text-gray-700 max-w-2xl"></p>
+            <cite id="splash-quote-author" class="block text-right mt-2 text-gray-500"></cite>
+        </blockquote>
+    </div>
+
+    <!-- Main App Wrapper -->
+    <div id="main-app" class="relative z-10 w-full h-full flex flex-col items-center justify-center opacity-0 transition-opacity duration-1000">
+        <a href="#card-container" id="keyboard-reveal-link" class="sr-only-focusable">Reveal for keyboard users</a>
+        
+        <div id="cursor-preview" class="hidden absolute pointer-events-none -translate-x-1/2 -translate-y-1/2">✨</div>
+        
+        <div id="toast-notification" class="fixed top-5 right-5 bg-red-600 text-white py-2 px-4 rounded-lg shadow-lg opacity-0 transform -translate-y-5 transition-all duration-300 pointer-events-none">
+            <p id="toast-message"></p>
+        </div>
+
+        <div class="max-w-lg w-full bg-white/50 rounded-lg p-4 mb-4 border border-pink-200 backdrop-blur-sm">
+            <h2 class="font-bold text-gray-700 mb-2">How to Use:</h2>
+            <ul class="list-disc list-inside text-sm text-gray-600 space-y-1">
+                <li>Scratch the card to reveal a message, your photo, or a slideshow.</li>
+                <li>Enable "Surprise Quotes" for an extra bit of inspiration while you scratch.</li>
+                <li>Add your own daily messages in the "Manage Custom Messages" section!</li>
+            </ul>
+        </div>
+
+        <div class="text-center p-4 max-w-lg w-full bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg">
+            <div id="status-announcer" aria-live="polite" class="sr-only"></div>
+
+            <h1 class="text-2xl md:text-4xl text-pink-500 font-pacifico mb-4">Just For You</h1>
+            <p class="text-gray-600 mb-6">Scratch below to reveal a surprise!</p>
+
+            <div id="card-container" class="card-container relative w-[320px] h-[180px] md:w-[450px] md:h-[250px] rounded-2xl overflow-hidden select-none mx-auto bg-white">
+                <canvas id="background-canvas" class="absolute inset-0 w-full h-full"></canvas>
+                <div id="hidden-message-container" aria-hidden="true" class="absolute inset-0 flex items-center justify-center transition-all duration-700 ease-in-out transform scale-95 opacity-0">
+                    <p id="hidden-message" class="text-4xl md:text-6xl font-pacifico text-red-500 text-center p-4"></p>
+                </div>
+                <div id="slideshow-container" class="absolute inset-0"></div>
+                <div id="slideshow-nav">
+                    <button class="slide-nav prev">‹</button>
+                    <button class="slide-nav next">›</button>
+                </div>
+                
+                <canvas id="scratch-canvas" class="absolute inset-0 w-full h-full"></canvas>
+                <canvas id="confetti-canvas" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+            </div>
+            
+             <!-- Surprise Quote Display Area -->
+            <div id="surprise-quote-container" class="mt-4 h-20 flex items-center justify-center p-2 opacity-0 transition-opacity duration-500">
+                <blockquote class="text-center">
+                    <p id="surprise-quote-text" class="text-gray-700 italic"></p>
+                    <cite id="surprise-quote-author" class="text-sm text-gray-500 block mt-1"></cite>
+                </blockquote>
+            </div>
+
+            <div class="mt-2 flex flex-col sm:flex-row items-center justify-center gap-4">
+                <p id="percentage-display" class="text-gray-700 font-semibold">Scratched: 0%</p>
+                <button id="reveal-btn" disabled class="bg-pink-500 text-white font-bold py-2 px-6 rounded-full transition-all duration-300 disabled:bg-pink-300 disabled:cursor-not-allowed disabled:opacity-70 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500">
+                    Reveal All
+                </button>
+                 <button id="reset-btn" class="bg-gray-500 text-white font-bold py-2 px-6 rounded-full transition-all duration-300 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                    Reset
+                </button>
+            </div>
+
+            <div class="mt-8 pt-6 border-t border-pink-200 space-y-4">
+                <div>
+                     <h2 class="text-lg font-semibold text-gray-700 mb-3">Personalize the Experience</h2>
+                    <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                        <input type="text" id="custom-message-input" placeholder="Set one-time message..." class="w-full sm:w-64 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-pink-400 focus:outline-none">
+                        <button id="save-message-btn" class="bg-green-500 text-white font-bold py-2 px-6 rounded-full transition-all duration-300 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                            Save
+                        </button>
+                    </div>
+                </div>
+                 <div>
+                    <div class="flex flex-wrap gap-3 justify-center">
+                        <input type="file" id="image-input" accept="image/*">
+                        <label for="image-input" tabindex="0" class="bg-blue-500 text-white font-bold py-2 px-6 rounded-full transition-all duration-300 hover:bg-blue-600 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Choose Image
+                        </label>
+                        <button id="mode-cycle-btn" class="bg-purple-500 text-white font-bold py-2 px-6 rounded-full transition-all duration-300 hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+                           Mode: Text
+                        </button>
+                        <button id="toggle-quotes-btn" class="bg-teal-500 text-white font-bold py-2 px-6 rounded-full transition-all duration-300 hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500">
+                           Surprise Quotes
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-700 mb-3 mt-4">Adjust Eraser Size</h2>
+                    <div class="flex items-center justify-center gap-3">
+                        <span class="text-sm text-gray-600">Small</span>
+                        <input type="range" id="eraser-size-slider" min="10" max="50" class="w-48 focus:outline-none focus:ring-2 focus:ring-pink-500 rounded-full">
+                        <span class="text-sm text-gray-600">Large</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-8 p-4 max-w-lg w-full bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg">
+             <h2 class="text-2xl text-center font-pacifico text-gray-700 mb-4">Manage Custom Messages</h2>
+             <form id="crud-form" class="space-y-3 mb-4">
+                <input type="hidden" id="crud-id-input">
+                <input type="text" id="crud-text-input" placeholder="Add or edit a message..." class="w-full px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-teal-400 focus:outline-none" required>
+                <button type="submit" id="crud-save-btn" class="w-full bg-teal-500 text-white font-bold py-2 px-6 rounded-full transition-all duration-300 hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500">Add Message</button>
+             </form>
+             <div id="crud-list" class="space-y-2 max-h-48 overflow-y-auto p-2 bg-gray-50/50 rounded-lg"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Elements ---
+            const splashScreen = document.getElementById('splash-screen'), mainApp = document.getElementById('main-app');
+            const splashDate = document.getElementById('splash-date'), splashTime = document.getElementById('splash-time');
+            const splashQuoteText = document.getElementById('splash-quote-text'), splashQuoteAuthor = document.getElementById('splash-quote-author');
+            const heartsBgCanvas = document.getElementById('hearts-background'), heartsCtx = heartsBgCanvas.getContext('2d');
+            const canvas = document.getElementById('scratch-canvas'), ctx = canvas.getContext('2d', { willReadFrequently: true });
+            const backgroundCanvas = document.getElementById('background-canvas'), bgCtx = backgroundCanvas.getContext('2d');
+            const confettiCanvas = document.getElementById('confetti-canvas'), confettiCtx = confettiCanvas.getContext('2d');
+            const cardContainer = document.getElementById('card-container');
+            const percentageDisplay = document.getElementById('percentage-display');
+            const revealBtn = document.getElementById('reveal-btn'), resetBtn = document.getElementById('reset-btn');
+            const hiddenMessageContainer = document.getElementById('hidden-message-container'), hiddenMessageP = document.getElementById('hidden-message');
+            const slideshowContainer = document.getElementById('slideshow-container'), slideshowNav = document.getElementById('slideshow-nav');
+            const customMessageInput = document.getElementById('custom-message-input'), saveMessageBtn = document.getElementById('save-message-btn');
+            const imageInput = document.getElementById('image-input'), modeCycleBtn = document.getElementById('mode-cycle-btn');
+            const eraserSizeSlider = document.getElementById('eraser-size-slider'), cursorPreview = document.getElementById('cursor-preview');
+            const statusAnnouncer = document.getElementById('status-announcer'), keyboardRevealLink = document.getElementById('keyboard-reveal-link');
+            const toastNotification = document.getElementById('toast-notification'), toastMessage = document.getElementById('toast-message');
+            const crudForm = document.getElementById('crud-form'), crudIdInput = document.getElementById('crud-id-input'), crudTextInput = document.getElementById('crud-text-input'), crudSaveBtn = document.getElementById('crud-save-btn'), crudList = document.getElementById('crud-list');
+            const toggleQuotesBtn = document.getElementById('toggle-quotes-btn');
+            const surpriseQuoteContainer = document.getElementById('surprise-quote-container');
+            const surpriseQuoteText = document.getElementById('surprise-quote-text');
+            const surpriseQuoteAuthor = document.getElementById('surprise-quote-author');
+            
+            // --- Config & State ---
+            const MESSAGE_KEY = 'customScratchMessage', IMAGE_KEY = 'customScratchImage', MODE_KEY = 'scratchCardMode', ERASER_SIZE_KEY = 'scratchCardEraserSize', CUSTOM_MESSAGES_KEY = 'customMessagesList';
+            const modes = ['text', 'image', 'slideshow'];
+            const defaultMessages = [ "You're my sunshine ☀️", "Have a magical day! 🦄", "You make the world better. 💖" ];
+            const slideshowImages = [
+                'https://images.unsplash.com/photo-1488866022504-f2584929ca5f?w=800', 'https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?w=800',
+                'https://images.unsplash.com/photo-1506443432602-ac2dcd7e20b3?w=800', 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=800',
+                'https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?w=800', 'https://images.unsplash.com/photo-1542224566-6e85f2ba5773?w=800',
+                'https://images.unsplash.com/photo-1483728642387-6c351b40b70b?w=800', 'https://images.unsplash.com/photo-1515694346937-94d85e41e620?w=800',
+                'https://images.unsplash.com/photo-1534274988757-a28bf1a57c17?w=800', 'https://images.unsplash.com/photo-1501630834273-4b5604d2ee31?w=800',
+                'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800', 'https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=800',
+                'https://images.unsplash.com/photo-1433086966358-54859d0ed716?w=800', 'https://images.unsplash.com/photo-1507525428034-b723a996f6ea?w=800',
+                'https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?w=800', 'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=800',
+                'https://images.unsplash.com/photo-1505144808419-1957a94ca61e?w=800', 'https://images.unsplash.com/photo-1532274402911-5a369e4c4bb5?w=800',
+                'https://images.unsplash.com/photo-1444703686981-a3abbc4d42e2?w=800', 'https://images.unsplash.com/photo-1454496522488-7a8e488e8606?w=800',
+                'https://images.unsplash.com/photo-1493352115364-4b5b4868c1ed?w=800', 'https://images.unsplash.com/photo-1494783404829-a93388a91227?w=800',
+                'https://images.unsplash.com/photo-1418065460487-3e41a6c84dc5?w=800', 'https://images.unsplash.com/photo-1494548162494-384bba4ab999?w=800',
+                'https://images.unsplash.com/photo-1473448912268-2022ce9509d8?w=800', 'https://images.unsplash.com/photo-1518173946687-a4c8892bbd9f?w=800',
+                'https://images.unsplash.com/photo-1476842634003-7dcca8f832de?w=800', 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?w=800',
+                'https://images.unsplash.com/photo-1511497584788-876760111969?w=800', 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?w=800',
+                'https://images.unsplash.com/photo-1520045892732-304bc3ac5d8e?w=800', 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800',
+                'https://images.unsplash.com/photo-1428592953211-077101b2021b?w=800', 'https://images.unsplash.com/photo-1447014421976-7f4415b82e87?w=800',
+                'https://images.unsplash.com/photo-1438382459702-92a14c810463?w=800', 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800',
+                'https://images.unsplash.com/photo-1472552944129-b035e9ea3744?w=800', 'https://images.unsplash.com/photo-1518098254633-31350ba42c13?w=800',
+                'https://images.unsplash.com/photo-1502134249126-9f3755a50d78?w=800', 'https://images.unsplash.com/photo-1504215680853-026ed2a45def?w=800'
+            ];
+            const surpriseQuotes = [
+                { text: "Distance means so little when someone means so much.", author: "Tom McNeal" }, { text: "Together is my favorite place to be.", author: "Unknown" }, { text: "Every love story is beautiful, but ours is my favorite.", author: "Unknown" }, { text: "You are my today and all of my tomorrows.", author: "Leo Christopher" }, { text: "I love you more than I have ever found a way to say to you.", author: "Ben Folds" }, { text: "Thinking of you is a poison I drink often.", author: "Atticus" }, { text: "You have bewitched me, body and soul.", author: "Pride & Prejudice" }, { text: "A true friend is one soul in two bodies.", author: "Aristotle" }, { text: "Good friends are like stars. You don't always see them, but you know they're always there.", author: "Unknown" }, { text: "My heart is, and always will be, yours.", author: "Jane Austen" }, { text: "If I know what love is, it is because of you.", author: "Hermann Hesse" }, { text: "To the world you may be one person, but to one person you are the world.", author: "Dr. Seuss" }, { text: "Your hand fits in mine like it's made just for me.", author: "Unknown" }, { text: "You're the closest to heaven that I'll ever be.", author: "Goo Goo Dolls" }, { text: "A friend is someone who knows all about you and still loves you.", author: "Elbert Hubbard" }, { text: "The only way to have a friend is to be one.", author: "Ralph Waldo Emerson" }, { text: "Walking with a friend in the dark is better than walking alone in the light.", author: "Helen Keller" }, { text: "I'm much more me when I'm with you.", author: "Unknown" }, { text: "You're my sunshine on a rainy day.", author: "Unknown" }, { text: "Just seeing your smile makes my day.", author: "Unknown" }
+            ];
+            
+            let isDrawing = false, revealEnabled = false, isRevealed = false, isQuoteModeActive = false;
+            let currentMode = 'text', lastPoint = null, brushSize = 25, resizeTimeout, currentSlideIndex = 0, lastSurpriseQuote = null;
+            let customMessages = [], hearts = [];
+            let audioCtx; 
+
+            // --- Utility Functions ---
+            function throttle(func, limit) { let inThrottle; return function() { const args = arguments; const context = this; if (!inThrottle) { func.apply(context, args); inThrottle = true; setTimeout(() => inThrottle = false, limit); } } }
+            function showToast(message) { toastMessage.textContent = message; toastNotification.classList.remove('opacity-0', '-translate-y-5'); setTimeout(() => toastNotification.classList.add('opacity-0', '-translate-y-5'), 3000); }
+            
+            // --- Sound Effect Logic ---
+            function playRevealSound() {
+                if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); 
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5);
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + 0.5);
+            }
+            
+            // --- Heart Drawing & Animation ---
+            function drawHeart(context, x, y, width, height, color) {
+                if(color) context.fillStyle = color;
+                context.beginPath();
+                const topCurveHeight = height * 0.3;
+                context.moveTo(x, y + topCurveHeight);
+                context.bezierCurveTo(x, y, x - width / 2, y, x - width / 2, y + topCurveHeight);
+                context.bezierCurveTo(x - width / 2, y + (height + topCurveHeight) / 2, x, y + (height + topCurveHeight) / 1.5, x, y + height);
+                context.bezierCurveTo(x, y + (height + topCurveHeight) / 1.5, x + width / 2, y + (height + topCurveHeight) / 2, x + width / 2, y + topCurveHeight);
+                context.bezierCurveTo(x + width / 2, y, x, y, x, y + topCurveHeight);
+                context.closePath();
+                context.fill();
+            }
+
+            function setupHeartsBackground() {
+                heartsBgCanvas.width = window.innerWidth;
+                heartsBgCanvas.height = window.innerHeight;
+                hearts = [];
+                // More hearts, more visible
+                for(let i = 0; i < 40; i++) { 
+                    hearts.push({ 
+                        x: Math.random() * heartsBgCanvas.width, 
+                        y: Math.random() * heartsBgCanvas.height, 
+                        size: Math.random() * 20 + 10, 
+                        speed: Math.random() * 1 + 0.5, 
+                        opacity: Math.random() * 0.5 + 0.3 // Increased opacity
+                    }); 
+                }
+            }
+            
+            function animateHearts() {
+                heartsCtx.clearRect(0, 0, heartsBgCanvas.width, heartsBgCanvas.height);
+                hearts.forEach(heart => {
+                    heart.y -= heart.speed;
+                    if (heart.y < -heart.size) { heart.y = heartsBgCanvas.height + heart.size; heart.x = Math.random() * heartsBgCanvas.width; }
+                    heartsCtx.globalAlpha = heart.opacity;
+                    // Slightly more vibrant pink
+                    heartsCtx.fillStyle = 'rgba(255, 173, 196, 0.7)';
+                    drawHeart(heartsCtx, heart.x, heart.y, heart.size, heart.size);
+                });
+                heartsCtx.globalAlpha = 1;
+                requestAnimationFrame(animateHearts);
+            }
+
+            // --- Splash Screen & Initialization ---
+             function showSplashScreen() {
+                const now = new Date();
+                splashDate.textContent = now.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                splashTime.textContent = now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+                const randomQuote = surpriseQuotes[Math.floor(Math.random() * surpriseQuotes.length)];
+                splashQuoteText.textContent = `"${randomQuote.text}"`;
+                splashQuoteAuthor.textContent = `— ${randomQuote.author}`;
+                setTimeout(() => {
+                    splashScreen.classList.add('opacity-0', 'pointer-events-none');
+                    mainApp.classList.remove('opacity-0');
+                    setTimeout(() => splashScreen.style.display = 'none', 1000);
+                }, 3000);
+            }
+            
+            function initialize() {
+                try {
+                    showSplashScreen();
+                    loadCustomMessages(); loadMessage(); loadMode(); loadEraserSize();
+                    setupEventListeners();
+                    setupHeartsBackground();
+                    animateHearts();
+                    resetCard();
+                } catch (error) { console.error("Initialization failed:", error); showToast("Something went wrong."); }
+            }
+            
+            // --- CRUD Logic ---
+            function loadCustomMessages() { customMessages = JSON.parse(localStorage.getItem(CUSTOM_MESSAGES_KEY)) || []; renderCrudList(); }
+            function saveCustomMessages() { localStorage.setItem(CUSTOM_MESSAGES_KEY, JSON.stringify(customMessages)); renderCrudList(); }
+            function renderCrudList() { crudList.innerHTML = ''; if(customMessages.length === 0) { crudList.innerHTML = '<p class="text-center text-gray-500">No custom messages yet.</p>'; return; } customMessages.forEach(msg => { const el = document.createElement('div'); el.className = 'flex justify-between items-center bg-white/70 p-2 rounded-md'; el.innerHTML = `<p class="truncate pr-2">${msg.text}</p><div class="flex-shrink-0"><button data-id="${msg.id}" class="edit-btn text-blue-500 hover:text-blue-700 p-1">✏️</button><button data-id="${msg.id}" class="delete-btn text-red-500 hover:text-red-700 p-1">🗑️</button></div>`; crudList.appendChild(el); }); }
+            function handleCrudFormSubmit(e) { e.preventDefault(); const text = crudTextInput.value.trim(); const id = crudIdInput.value; if (!text) return; if (id) { const index = customMessages.findIndex(msg => msg.id == id); if (index > -1) customMessages[index].text = text; } else { customMessages.push({ id: Date.now(), text }); } saveCustomMessages(); crudForm.reset(); crudIdInput.value = ''; crudSaveBtn.textContent = "Add Message"; }
+            function handleCrudListClick(e) { const id = e.target.dataset.id; if (!id) return; if (e.target.classList.contains('delete-btn')) { customMessages = customMessages.filter(msg => msg.id != id); saveCustomMessages(); } if (e.target.classList.contains('edit-btn')) { const msg = customMessages.find(m => m.id == id); if (msg) { crudTextInput.value = msg.text; crudIdInput.value = msg.id; crudSaveBtn.textContent = "Update Message"; crudTextInput.focus(); } } }
+
+            // --- UI & Mode Management ---
+            function loadMessage() { const savedMessage = localStorage.getItem(MESSAGE_KEY); if (savedMessage) { hiddenMessageP.textContent = savedMessage; customMessageInput.value = savedMessage; } else { const combinedMessages = [...defaultMessages, ...customMessages.map(m => m.text)]; const randomMessage = combinedMessages[Math.floor(Math.random() * combinedMessages.length)]; hiddenMessageP.textContent = randomMessage; customMessageInput.value = ''; } }
+            function cycleMode() { let currentIndex = modes.indexOf(currentMode); let nextIndex = (currentIndex + 1) % modes.length; let nextMode = modes[nextIndex]; if (nextMode === 'image' && !localStorage.getItem(IMAGE_KEY)) { nextIndex = (nextIndex + 1) % modes.length; nextMode = modes[nextIndex]; } currentMode = nextMode; localStorage.setItem(MODE_KEY, currentMode); updateDisplayForMode(); resetCard(); }
+            function updateDisplayForMode() { modeCycleBtn.textContent = `Mode: ${currentMode.charAt(0).toUpperCase() + currentMode.slice(1)}`; hiddenMessageContainer.style.display = currentMode === 'text' ? 'flex' : 'none'; backgroundCanvas.style.display = currentMode === 'image' ? 'block' : 'none'; slideshowContainer.style.display = currentMode === 'slideshow' ? 'block' : 'none'; slideshowNav.style.display = 'none'; }
+            function buildSlideshow() { slideshowContainer.innerHTML = ''; slideshowImages.forEach((src, index) => { const img = document.createElement('img'); img.src = src; img.className = `slide ${index === 0 ? 'active' : ''}`; img.alt = "Slideshow image"; slideshowContainer.appendChild(img); }); }
+            function showSlide(index) { const slides = slideshowContainer.querySelectorAll('.slide'); slides.forEach((slide, i) => slide.classList.toggle('active', i === index)); }
+            function loadEraserSize() { brushSize = parseInt(localStorage.getItem(ERASER_SIZE_KEY) || '25', 10); eraserSizeSlider.value = brushSize; }
+            function handleEraserSizeChange(event) { brushSize = parseInt(event.target.value, 10); localStorage.setItem(ERASER_SIZE_KEY, brushSize); }
+            function loadMode() { currentMode = localStorage.getItem(MODE_KEY) || 'text'; updateDisplayForMode(); }
+            function saveMessage() { localStorage.setItem(MESSAGE_KEY, customMessageInput.value.trim() || ''); loadMessage(); if (currentMode !== 'text') { currentMode = 'text'; localStorage.setItem(MODE_KEY, 'text'); updateDisplayForMode(); } resetCard(); }
+            function handleImageUpload(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { localStorage.setItem(IMAGE_KEY, e.target.result); currentMode = 'image'; localStorage.setItem(MODE_KEY, 'image'); updateDisplayForMode(); resetCard(); }; reader.onerror = () => showToast("Could not read file."); reader.readAsDataURL(file); }
+            function resetCard() { isDrawing = false; revealEnabled = false; isRevealed = false; lastPoint = null; percentageDisplay.textContent = 'Scratched: 0%'; revealBtn.disabled = true; revealBtn.classList.remove('pulse-once-enabled'); updateDisplayForMode(); if (currentMode === 'image') drawBackgroundImage(); else if (currentMode === 'slideshow') buildSlideshow(); else { loadMessage(); hiddenMessageContainer.classList.remove('scale-100', 'opacity-100'); } canvas.style.display = 'block'; canvas.style.opacity = '1'; setupCanvas(); }
+
+            function revealMessage() {
+                if (isRevealed) return; isRevealed = true;
+                playRevealSound(); triggerConfetti(); statusAnnouncer.textContent = "Revealed!";
+                if (currentMode === 'text') { hiddenMessageContainer.classList.add('scale-100', 'opacity-100'); }
+                if (currentMode === 'slideshow') { slideshowNav.style.display = 'block'; }
+                canvas.style.transition = 'opacity 0.6s ease-out'; canvas.style.opacity = '0';
+                revealBtn.disabled = true; revealBtn.classList.remove('pulse-once-enabled');
+                percentageDisplay.textContent = 'Revealed!';
+                setTimeout(() => canvas.style.display = 'none', 600);
+            }
+            
+            function drawBackgroundImage() { const img = new Image(); const savedImage = localStorage.getItem(IMAGE_KEY); if (!savedImage) { if (currentMode === 'image') cycleMode(); return; }; img.onload = () => { const rect = cardContainer.getBoundingClientRect(), dpr = window.devicePixelRatio || 1; backgroundCanvas.width = rect.width * dpr; backgroundCanvas.height = rect.height * dpr; bgCtx.scale(dpr, dpr); const canvasAspect = rect.width / rect.height, imgAspect = img.width / img.height; let sx = 0, sy = 0, sWidth = img.width, sHeight = img.height; if (imgAspect > canvasAspect) { sWidth = img.height * canvasAspect; sx = (img.width - sWidth) / 2; } else { sHeight = img.width / canvasAspect; sy = (img.height - sHeight) / 2; } bgCtx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, rect.width, rect.height); }; img.onerror = () => { showToast("Image failed to load."); localStorage.removeItem(IMAGE_KEY); if (currentMode === 'image') cycleMode(); }; img.src = savedImage; }
+
+            function setupCanvas() {
+                const dpr = window.devicePixelRatio || 1, rect = cardContainer.getBoundingClientRect();
+                canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
+                ctx.scale(dpr, dpr);
+                const gradient = ctx.createLinearGradient(0, 0, rect.width, rect.height);
+                gradient.addColorStop(0, '#f7d1cd'); 
+                gradient.addColorStop(0.5, '#eac4d5');
+                gradient.addColorStop(1, '#f7d1cd');
+                ctx.fillStyle = gradient; ctx.fillRect(0, 0, rect.width, rect.height);
+                ctx.fillStyle = 'rgba(120, 50, 50, 0.4)'; ctx.font = 'bold 20px Nunito';
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText('SCRATCH HERE', rect.width / 2, rect.height / 2);
+            }
+
+            function toggleQuoteMode() {
+                isQuoteModeActive = !isQuoteModeActive;
+                if (isQuoteModeActive) {
+                    toggleQuotesBtn.textContent = "Hide Quotes";
+                    displayRandomSurpriseQuote();
+                    surpriseQuoteContainer.classList.remove('opacity-0');
+                } else {
+                    toggleQuotesBtn.textContent = "Surprise Quotes";
+                    surpriseQuoteContainer.classList.add('opacity-0');
+                }
+            }
+
+            function displayRandomSurpriseQuote() {
+                let potentialQuotes = surpriseQuotes.filter(q => q.text !== lastSurpriseQuote?.text);
+                if(potentialQuotes.length === 0) potentialQuotes = surpriseQuotes;
+                const quote = potentialQuotes[Math.floor(Math.random() * potentialQuotes.length)];
+                lastSurpriseQuote = quote;
+                surpriseQuoteText.textContent = `"${quote.text}"`;
+                surpriseQuoteAuthor.textContent = `— ${quote.author}`;
+            }
+            
+            const throttledUpdate = throttle(() => {
+                calculateScratchedPercentage();
+                if (isQuoteModeActive) {
+                    displayRandomSurpriseQuote();
+                }
+            }, 150);
+            
+            function calculateScratchedPercentage() { const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height), data = imageData.data; let transparentPixels = 0, stride = 32; for (let i = 3; i < data.length; i += stride) { if (data[i] < 128) transparentPixels++; } const percentage = Math.round((transparentPixels / (data.length / stride)) * 100); percentageDisplay.textContent = `Scratched: ${percentage}%`; if (!revealEnabled && percentage >= 50) { revealEnabled = true; revealBtn.disabled = false; revealBtn.classList.add('pulse-once-enabled'); statusAnnouncer.textContent = "50% reached, Reveal available"; } if (percentage >= 95) revealMessage(); }
+            function getEventLocation(e) { const rect = canvas.getBoundingClientRect(); const clientX = e.touches ? e.touches[0].clientX : e.clientX; const clientY = e.touches ? e.touches[0].clientY : e.clientY; return { x: clientX - rect.left, y: clientY - rect.top }; }
+            function scratchLine(from, to) { ctx.globalCompositeOperation = 'destination-out'; ctx.lineWidth = brushSize * 2; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y); ctx.stroke(); }
+            function onPointerDown(e) { e.preventDefault(); if(isRevealed) return; isDrawing = true; lastPoint = getEventLocation(e); scratchLine(lastPoint, lastPoint); }
+            function onPointerMove(e) { e.preventDefault(); const { clientX, clientY } = e.touches ? e.touches[0] : e; cursorPreview.style.left = `${clientX}px`; cursorPreview.style.top = `${clientY}px`; if (isDrawing) { const currentPoint = getEventLocation(e); scratchLine(lastPoint, currentPoint); lastPoint = currentPoint; throttledUpdate(); } }
+            function onPointerUp(e) { e.preventDefault(); if (isDrawing) { calculateScratchedPercentage(); isDrawing = false; lastPoint = null; } }
+            
+            function setupEventListeners() {
+                saveMessageBtn.addEventListener('click', saveMessage); resetBtn.addEventListener('click', resetCard);
+                revealBtn.addEventListener('click', revealMessage); imageInput.addEventListener('change', handleImageUpload);
+                modeCycleBtn.addEventListener('click', cycleMode); eraserSizeSlider.addEventListener('input', handleEraserSizeChange);
+                slideshowNav.querySelector('.prev').addEventListener('click', () => { currentSlideIndex = (currentSlideIndex - 1 + slideshowImages.length) % slideshowImages.length; showSlide(currentSlideIndex); });
+                slideshowNav.querySelector('.next').addEventListener('click', () => { currentSlideIndex = (currentSlideIndex + 1) % slideshowImages.length; showSlide(currentSlideIndex); });
+                keyboardRevealLink.addEventListener('click', (e) => { e.preventDefault(); revealMessage(); });
+                crudForm.addEventListener('submit', handleCrudFormSubmit); crudList.addEventListener('click', handleCrudListClick);
+                
+                // Add the new listener
+                toggleQuotesBtn.addEventListener('click', toggleQuoteMode);
+
+                canvas.addEventListener('mousedown', onPointerDown); document.addEventListener('mouseup', onPointerUp);
+                canvas.addEventListener('mousemove', onPointerMove);
+                canvas.addEventListener('mouseleave', () => cursorPreview.classList.add('hidden'));
+                canvas.addEventListener('mouseenter', () => cursorPreview.classList.remove('hidden'));
+                canvas.addEventListener('touchstart', onPointerDown, { passive: false });
+                canvas.addEventListener('touchmove', onPointerMove, { passive: false });
+                document.addEventListener('touchend', onPointerUp);
+                window.addEventListener('resize', () => { clearTimeout(resizeTimeout); resizeTimeout = setTimeout(() => { setupHeartsBackground(); resetCard(); }, 150); });
+            }
+
+            function triggerConfetti() {
+                const particles = []; const dpr = window.devicePixelRatio || 1; const rect = cardContainer.getBoundingClientRect();
+                confettiCanvas.width = rect.width * dpr; confettiCanvas.height = rect.height * dpr; confettiCtx.scale(dpr, dpr);
+                for (let i = 0; i < 50; i++) { // Fewer hearts look better
+                    particles.push({ x: rect.width/2, y: rect.height/2, vx: (Math.random()-0.5)*6, vy: (Math.random()*-8)-4, size: Math.random()*15+10, color: `hsl(${340 + Math.random()*20}, 90%, 65%)`, opacity: 1, gravity: 0.1, rotation: Math.random() * 360 });
+                }
+                function loop() {
+                    if (particles.length === 0) { confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height); return; }
+                    requestAnimationFrame(loop);
+                    confettiCtx.clearRect(0, 0, rect.width, rect.height);
+                    particles.forEach((p, i) => {
+                        p.vy += p.gravity; p.x += p.vx; p.y += p.vy; p.opacity -= 0.01; p.rotation += p.vx * 0.5;
+                        if (p.opacity <= 0) particles.splice(i, 1);
+                        else {
+                            confettiCtx.save();
+                            confettiCtx.globalAlpha = p.opacity;
+                            confettiCtx.translate(p.x, p.y);
+                            confettiCtx.rotate(p.rotation * Math.PI / 180);
+                            drawHeart(confettiCtx, 0, 0, p.size, p.size, p.color);
+                            confettiCtx.restore();
+                        }
+                    });
+                }
+                loop();
+            }
+
+            initialize();
+        });
+    </script>
+</body>
+</html>
+
