@@ -13,7 +13,6 @@
         body {
             /* Using Nunito as the primary font */
             font-family: 'Nunito', sans-serif;
-            touch-action: none;
             /* New, more vibrant and romantic gradient background */
             background: linear-gradient(-45deg, #ffafcc, #ffc8dd, #bde0fe, #a2d2ff);
             background-size: 400% 400%;
@@ -29,6 +28,7 @@
         }
         #scratch-canvas {
             cursor: none;
+            touch-action: none; /* This is the key fix: It prevents page scroll ONLY while scratching */
         }
         .card-container {
             box-shadow: 0 10px 35px rgba(0,0,0,0.1), 0 5px 15px rgba(0,0,0,0.07);
