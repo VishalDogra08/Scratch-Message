@@ -269,13 +269,13 @@
             
             let isDrawing = false, revealEnabled = false, isRevealed = false, isQuoteModeActive = false;
             let currentMode = 'text', lastPoint = null, brushSize = 25, resizeTimeout, currentSlideIndex = 0, lastSurpriseQuote = null;
-            let customMessages = [], hearts = [];
-            let audioCtx; 
+            let customMessages = [], hearts = [], messagePool = [];
 
             // --- Utility Functions ---
             function throttle(func, limit) { let inThrottle; return function() { const args = arguments; const context = this; if (!inThrottle) { func.apply(context, args); inThrottle = true; setTimeout(() => inThrottle = false, limit); } } }
             function showToast(message) { toastMessage.textContent = message; toastNotification.classList.remove('opacity-0', '-translate-y-5'); setTimeout(() => toastNotification.classList.add('opacity-0', '-translate-y-5'), 3000); }
-            
+            function shuffleArray(array) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; } }
+
             // --- Sound Effect Logic ---
             function playRevealSound() {
                 if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
@@ -309,16 +309,7 @@
                 heartsBgCanvas.width = window.innerWidth;
                 heartsBgCanvas.height = window.innerHeight;
                 hearts = [];
-                // More hearts, more visible
-                for(let i = 0; i < 40; i++) { 
-                    hearts.push({ 
-                        x: Math.random() * heartsBgCanvas.width, 
-                        y: Math.random() * heartsBgCanvas.height, 
-                        size: Math.random() * 20 + 10, 
-                        speed: Math.random() * 1 + 0.5, 
-                        opacity: Math.random() * 0.5 + 0.3 // Increased opacity
-                    }); 
-                }
+                for(let i = 0; i < 40; i++) { hearts.push({ x: Math.random() * heartsBgCanvas.width, y: Math.random() * heartsBgCanvas.height, size: Math.random() * 20 + 10, speed: Math.random() * 1 + 0.5, opacity: Math.random() * 0.5 + 0.3 }); }
             }
             
             function animateHearts() {
@@ -327,7 +318,6 @@
                     heart.y -= heart.speed;
                     if (heart.y < -heart.size) { heart.y = heartsBgCanvas.height + heart.size; heart.x = Math.random() * heartsBgCanvas.width; }
                     heartsCtx.globalAlpha = heart.opacity;
-                    // Slightly more vibrant pink
                     heartsCtx.fillStyle = 'rgba(255, 173, 196, 0.7)';
                     drawHeart(heartsCtx, heart.x, heart.y, heart.size, heart.size);
                 });
@@ -353,7 +343,8 @@
             function initialize() {
                 try {
                     showSplashScreen();
-                    loadCustomMessages(); loadMessage(); loadMode(); loadEraserSize();
+                    loadCustomMessages(); 
+                    loadMode(); loadEraserSize();
                     setupEventListeners();
                     setupHeartsBackground();
                     animateHearts();
@@ -361,15 +352,35 @@
                 } catch (error) { console.error("Initialization failed:", error); showToast("Something went wrong."); }
             }
             
-            // --- CRUD Logic ---
-            function loadCustomMessages() { customMessages = JSON.parse(localStorage.getItem(CUSTOM_MESSAGES_KEY)) || []; renderCrudList(); }
-            function saveCustomMessages() { localStorage.setItem(CUSTOM_MESSAGES_KEY, JSON.stringify(customMessages)); renderCrudList(); }
+            // --- CRUD & Message Pool Logic ---
+            function buildAndShuffleMessagePool() {
+                const combinedMessages = [...defaultMessages, ...customMessages.map(m => m.text)];
+                shuffleArray(combinedMessages);
+                messagePool = combinedMessages;
+            }
+
+            function loadCustomMessages() { customMessages = JSON.parse(localStorage.getItem(CUSTOM_MESSAGES_KEY)) || []; buildAndShuffleMessagePool(); renderCrudList(); }
+            function saveCustomMessages() { localStorage.setItem(CUSTOM_MESSAGES_KEY, JSON.stringify(customMessages)); buildAndShuffleMessagePool(); renderCrudList(); }
             function renderCrudList() { crudList.innerHTML = ''; if(customMessages.length === 0) { crudList.innerHTML = '<p class="text-center text-gray-500">No custom messages yet.</p>'; return; } customMessages.forEach(msg => { const el = document.createElement('div'); el.className = 'flex justify-between items-center bg-white/70 p-2 rounded-md'; el.innerHTML = `<p class="truncate pr-2">${msg.text}</p><div class="flex-shrink-0"><button data-id="${msg.id}" class="edit-btn text-blue-500 hover:text-blue-700 p-1">✏️</button><button data-id="${msg.id}" class="delete-btn text-red-500 hover:text-red-700 p-1">🗑️</button></div>`; crudList.appendChild(el); }); }
             function handleCrudFormSubmit(e) { e.preventDefault(); const text = crudTextInput.value.trim(); const id = crudIdInput.value; if (!text) return; if (id) { const index = customMessages.findIndex(msg => msg.id == id); if (index > -1) customMessages[index].text = text; } else { customMessages.push({ id: Date.now(), text }); } saveCustomMessages(); crudForm.reset(); crudIdInput.value = ''; crudSaveBtn.textContent = "Add Message"; }
             function handleCrudListClick(e) { const id = e.target.dataset.id; if (!id) return; if (e.target.classList.contains('delete-btn')) { customMessages = customMessages.filter(msg => msg.id != id); saveCustomMessages(); } if (e.target.classList.contains('edit-btn')) { const msg = customMessages.find(m => m.id == id); if (msg) { crudTextInput.value = msg.text; crudIdInput.value = msg.id; crudSaveBtn.textContent = "Update Message"; crudTextInput.focus(); } } }
 
             // --- UI & Mode Management ---
-            function loadMessage() { const savedMessage = localStorage.getItem(MESSAGE_KEY); if (savedMessage) { hiddenMessageP.textContent = savedMessage; customMessageInput.value = savedMessage; } else { const combinedMessages = [...defaultMessages, ...customMessages.map(m => m.text)]; const randomMessage = combinedMessages[Math.floor(Math.random() * combinedMessages.length)]; hiddenMessageP.textContent = randomMessage; customMessageInput.value = ''; } }
+            function loadMessage() { 
+                const savedMessage = localStorage.getItem(MESSAGE_KEY); 
+                if (savedMessage) { 
+                    hiddenMessageP.textContent = savedMessage; 
+                    customMessageInput.value = savedMessage; 
+                } else {
+                    if (messagePool.length === 0) buildAndShuffleMessagePool();
+                    if (messagePool.length === 0) {
+                        hiddenMessageP.textContent = "Add a custom message!";
+                    } else {
+                        hiddenMessageP.textContent = messagePool.pop();
+                    }
+                    customMessageInput.value = '';
+                } 
+            }
             function cycleMode() { let currentIndex = modes.indexOf(currentMode); let nextIndex = (currentIndex + 1) % modes.length; let nextMode = modes[nextIndex]; if (nextMode === 'image' && !localStorage.getItem(IMAGE_KEY)) { nextIndex = (nextIndex + 1) % modes.length; nextMode = modes[nextIndex]; } currentMode = nextMode; localStorage.setItem(MODE_KEY, currentMode); updateDisplayForMode(); resetCard(); }
             function updateDisplayForMode() { modeCycleBtn.textContent = `Mode: ${currentMode.charAt(0).toUpperCase() + currentMode.slice(1)}`; hiddenMessageContainer.style.display = currentMode === 'text' ? 'flex' : 'none'; backgroundCanvas.style.display = currentMode === 'image' ? 'block' : 'none'; slideshowContainer.style.display = currentMode === 'slideshow' ? 'block' : 'none'; slideshowNav.style.display = 'none'; }
             function buildSlideshow() { slideshowContainer.innerHTML = ''; slideshowImages.forEach((src, index) => { const img = document.createElement('img'); img.src = src; img.className = `slide ${index === 0 ? 'active' : ''}`; img.alt = "Slideshow image"; slideshowContainer.appendChild(img); }); }
