@@ -139,8 +139,8 @@
                 </div>
                 <div id="slideshow-container" class="absolute inset-0"></div>
                 <div id="slideshow-nav">
-                    <button class="slide-nav prev">‹</button>
-                    <button class="slide-nav next">›</button>
+                    <button class="slide-nav prev" aria-label="Previous slide">‹</button>
+                    <button class="slide-nav next" aria-label="Next slide">›</button>
                 </div>
                 
                 <canvas id="scratch-canvas" class="absolute inset-0 w-full h-full"></canvas>
@@ -160,9 +160,8 @@
                 <button id="reveal-btn" disabled class="bg-pink-500 text-white font-bold py-2 px-6 rounded-full transition-all duration-300 disabled:bg-pink-300 disabled:cursor-not-allowed disabled:opacity-70 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500">
                     Reveal All
                 </button>
-                 <button id="reset-btn" class="bg-gray-500 text-white font-bold py-2 px-6 rounded-full transition-all duration-300 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
-                    Reset
-                </button>
+                 <!-- CHANGE> Reset now fully clears image/message/mode/eraser/quotes. Hold Alt to soft-reset (scratch only). -->
+                <button id="reset-btn" title="Click to reset all settings; Alt+Click to reset only the scratch layer" class="bg-gray-500 text-white font-bold py-2 px-6 rounded-full transition-all duration-300 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">Reset</button>
             </div>
 
             <div class="mt-8 pt-6 border-t border-pink-200 space-y-4">
@@ -236,64 +235,14 @@
             const surpriseQuoteContainer = document.getElementById('surprise-quote-container');
             const surpriseQuoteText = document.getElementById('surprise-quote-text');
             const surpriseQuoteAuthor = document.getElementById('surprise-quote-author');
-            
+
+            // <CHANGE> Fix: declare audioCtx to prevent ReferenceError in playRevealSound
+            let audioCtx = null;
+
             // --- Config & State ---
             const MESSAGE_KEY = 'customScratchMessage', IMAGE_KEY = 'customScratchImage', MODE_KEY = 'scratchCardMode', ERASER_SIZE_KEY = 'scratchCardEraserSize', CUSTOM_MESSAGES_KEY = 'customMessagesList';
             const modes = ['text', 'image', 'slideshow'];
-            const defaultMessages = [
-  "You're my sunshine ☀️",
-  "Have a magical day! 🦄",
-  "You make the world better. 💖",
-  "Keep shining, the world needs your light ✨",
-  "You are stronger than you think 💪",
-  "Every day is a fresh start 🌸",
-  "Your smile can brighten any room 😊",
-  "Dream big, achieve bigger 🚀",
-  "Happiness looks good on you 🌈",
-  "Stay positive, work hard, make it happen 🌟",
-  "You are loved more than you know ❤️",
-  "Believe in yourself, always 🌻",
-  "Good vibes only ✌️",
-  "You’re a beautiful soul 💫",
-  "Stay kind, the world needs it 🌍",
-  "Keep going, you’re doing great 🌱",
-  "Your potential is endless 🔥",
-  "Be your own kind of wonderful 🌷",
-  "Little things make big days ☕",
-  "Shine like the stars 🌌",
-  "Kindness is free, sprinkle it everywhere 💕",
-  "Never stop dreaming 🌠",
-  "You are a masterpiece 🎨",
-  "Peace begins with a smile 🌿",
-  "The best is yet to come 🌞",
-  "Be the rainbow in someone’s cloud 🌈",
-  "Stay golden 🌟",
-  "You’re a blessing to many 💝",
-  "Every moment matters ⏳",
-  "Keep blooming 🌺",
-  "Love yourself first 💓",
-  "You light up the dark 🔦",
-  "Celebrate the little wins 🏅",
-  "Courage is contagious 🦁",
-  "Life is tough, but so are you 🌼",
-  "Your heart is pure gold 💛",
-  "Good energy is contagious ⚡",
-  "Stars shine brightest in the dark 🌃",
-  "You are unique, and that’s your power 🌙",
-  "Radiate positivity 🌞",
-  "Gratitude turns little into enough 🙏",
-  "Spread love everywhere you go 💐",
-  "Your journey is just beginning 🚴",
-  "One step at a time 👣",
-  "Stay hopeful 🌅",
-  "You deserve all the happiness 🌻",
-  "You inspire more than you realize 💡",
-  "Life is more beautiful with you in it 🌹",
-  "Keep faith, keep moving 🌊",
-  "Happiness starts with you 💕",
-  "Trust the timing of your life ⏰",
-  "Good things are coming your way 🍀"
-];
+            const defaultMessages = [ "You're my sunshine ☀️", "Have a magical day! 🦄", "You make the world better. 💖" , "" ];
             const slideshowImages = [
                 'https://images.unsplash.com/photo-1488866022504-f2584929ca5f?w=800', 'https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?w=800',
                 'https://images.unsplash.com/photo-1506443432602-ac2dcd7e20b3?w=800', 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=800',
@@ -584,4 +533,3 @@
     </script>
 </body>
 </html>
-
