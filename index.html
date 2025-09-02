@@ -441,7 +441,15 @@
             function scratchLine(from, to) { ctx.globalCompositeOperation = 'destination-out'; ctx.lineWidth = brushSize * 2; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y); ctx.stroke(); }
             function onPointerDown(e) { e.preventDefault(); if(isRevealed) return; isDrawing = true; lastPoint = getEventLocation(e); scratchLine(lastPoint, lastPoint); }
             function onPointerMove(e) { e.preventDefault(); const { clientX, clientY } = e.touches ? e.touches[0] : e; cursorPreview.style.left = `${clientX}px`; cursorPreview.style.top = `${clientY}px`; if (isDrawing) { const currentPoint = getEventLocation(e); scratchLine(lastPoint, currentPoint); lastPoint = currentPoint; throttledUpdate(); } }
-            function onPointerUp(e) { e.preventDefault(); if (isDrawing) { calculateScratchedPercentage(); isDrawing = false; lastPoint = null; } }
+            
+            function onPointerUp(e) {
+                // We don't prevent default here to allow clicks on buttons
+                if (isDrawing) {
+                    calculateScratchedPercentage();
+                    isDrawing = false;
+                    lastPoint = null;
+                }
+            }
             
             function setupEventListeners() {
                 saveMessageBtn.addEventListener('click', saveMessage); resetBtn.addEventListener('click', resetCard);
@@ -455,13 +463,14 @@
                 // Add the new listener
                 toggleQuotesBtn.addEventListener('click', toggleQuoteMode);
 
-                canvas.addEventListener('mousedown', onPointerDown); document.addEventListener('mouseup', onPointerUp);
+                canvas.addEventListener('mousedown', onPointerDown);
                 canvas.addEventListener('mousemove', onPointerMove);
+                document.addEventListener('mouseup', onPointerUp); // Listen on document to catch mouseup outside canvas
                 canvas.addEventListener('mouseleave', () => cursorPreview.classList.add('hidden'));
                 canvas.addEventListener('mouseenter', () => cursorPreview.classList.remove('hidden'));
                 canvas.addEventListener('touchstart', onPointerDown, { passive: false });
                 canvas.addEventListener('touchmove', onPointerMove, { passive: false });
-                document.addEventListener('touchend', onPointerUp);
+                document.addEventListener('touchend', onPointerUp); // Listen on document to catch touchend outside canvas
                 window.addEventListener('resize', () => { clearTimeout(resizeTimeout); resizeTimeout = setTimeout(() => { setupHeartsBackground(); resetCard(); }, 150); });
             }
 
